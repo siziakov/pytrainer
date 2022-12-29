@@ -1,0 +1,2 @@
+29.12.2022  1 hour      Project PyTrainer is controlled by Git
+                        Sample for connecting to BT device
