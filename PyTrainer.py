@@ -8,15 +8,34 @@ from PySide2.QtCore import QFile
 from PySide2.QtUiTools import QUiLoader
 from PyQt5 import QtWidgets, uic
 from PyQt5 import QtBluetooth
+from PyQt5 import QtCore
 
 class pyTrainer(QWidget):
+    zephyrMAC = "CC:78:AB:5D:FC:B9"
+
     def __init__(self, parent = None):
         super(pyTrainer, self).__init__(parent)
         self.win = uic.loadUi("mainwindow.ui")
         self.win.show();
+        self.win.versionTxtBox.setText("200")
+
+        self.packetTimer = QtCore.QTimer()
+        self.packetTimer.timeout.connect(self.packetTimerTick)
+        self.packetTimer.start(1000)
+
+    def packetTimerTick(self):
+        self.writeLog("packetTimerTick")
+        self.readBTSocket()
+
+    def readBTSocket(self):
+        self.packet = self.btSocket.readAll()
+        self.writeLog(str(self.packet))
 
     def test(self):
         print("jfhjkhfk")
+
+    def writeLog(self,text):
+        self.win.logPlainTextEdit.appendPlainText(text)
 
     def zephyrInit(self, btAddress):
         self.btSocket = QtBluetooth.QBluetoothSocket(QtBluetooth.QBluetoothServiceInfo.RfcommProtocol)
@@ -26,24 +45,33 @@ class pyTrainer(QWidget):
         self.btSocket.error.connect(self.socketError)
         self.btSocket.connectToService(QtBluetooth.QBluetoothAddress(btAddress), QtBluetooth.QBluetoothUuid(QtBluetooth.QBluetoothUuid.SerialPort))
 
+        #self.localDevice = QtBluetooth.QBluetoothLocalDevice()
+
+    def hostModeStateChanged(self,state):
+        self.writeLog(state)
+
     def socketError(self,error):
         print(self.btSocket.errorString())
+        self.writeLog("socketError")
 
     def connectedToBluetooth(self):
         self.btSocket.write('A'.encode())
+        self.writeLog("connectedToBluetooth")
 
     def disconnectedFromBluetooth(self):
         self.print('Disconnected from bluetooth')
+        self.wtiteLog("disconnectedFromBluetooth")
 
     def receivedBluetoothMessage(self):
         while btSocket.canReadLine():
             line = btSocket.readLine()
             print(line)
+        self.wtiteLog("receivedBluetoothMessage")
 
 def main():
     app = QApplication(sys.argv)
     ex = pyTrainer();
-    ex.zephyrInit("98:D3:C1:FD:2C:46")
+    ex.zephyrInit(ex.zephyrMAC)
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
