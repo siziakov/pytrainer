@@ -9,19 +9,21 @@ from PySide2.QtUiTools import QUiLoader
 from PyQt5 import QtWidgets, uic
 from PyQt5 import QtBluetooth
 from PyQt5 import QtCore
+from PyQt5.QtBluetooth import QBluetoothLocalDevice
 
 class pyTrainer(QWidget):
     zephyrMAC = "CC:78:AB:5D:FC:B9"
 
     def __init__(self, parent = None):
         super(pyTrainer, self).__init__(parent)
+
         self.win = uic.loadUi("mainwindow.ui")
         self.win.show();
         self.win.versionTxtBox.setText("200")
 
         self.packetTimer = QtCore.QTimer()
         self.packetTimer.timeout.connect(self.packetTimerTick)
-        self.packetTimer.start(1000)
+        #self.packetTimer.start(1000)
 
     def packetTimerTick(self):
         self.writeLog("packetTimerTick")
@@ -45,7 +47,15 @@ class pyTrainer(QWidget):
         self.btSocket.error.connect(self.socketError)
         self.btSocket.connectToService(QtBluetooth.QBluetoothAddress(btAddress), QtBluetooth.QBluetoothUuid(QtBluetooth.QBluetoothUuid.SerialPort))
 
-        #self.localDevice = QtBluetooth.QBluetoothLocalDevice()
+        self.localDevice = QtBluetooth.QBluetoothLocalDevice()
+        if self.localDevice.isValid():
+            is_off = self.localDevice.hostMode() == QBluetoothLocalDevice.HostPoweredOff or False
+            if is_off:
+                self.localDevice.setHostMode(QBluetoothLocalDevice.HostDiscoverable)
+                self.localDevice.powerOn()
+                self.localDevice.setHostMode(QBluetoothLocalDevice.HostDiscoverable)
+            #else:
+                #self.localDevice.setHostMode(QBluetoothLocalDevice.HostPoweredOff)
 
     def hostModeStateChanged(self,state):
         self.writeLog(state)
@@ -63,15 +73,17 @@ class pyTrainer(QWidget):
         self.wtiteLog("disconnectedFromBluetooth")
 
     def receivedBluetoothMessage(self):
+        self.wtiteLog("receivedBluetoothMessage")
         while btSocket.canReadLine():
             line = btSocket.readLine()
-            print(line)
-        self.wtiteLog("receivedBluetoothMessage")
+            writeLog(str(line))
 
 def main():
     app = QApplication(sys.argv)
+
     ex = pyTrainer();
     ex.zephyrInit(ex.zephyrMAC)
+
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
