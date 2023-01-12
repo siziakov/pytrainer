@@ -67,7 +67,7 @@ class pyTrainer(QWidget):
     def devicePairingFinished(self, address, pairing):
         self.writeLog(str(address))
         self.writeLog(str(pairing))
-        self.btSocket.connectToService(QtBluetooth.QBluetoothAddress(btAddress), QtBluetooth.QBluetoothUuid(QtBluetooth.QBluetoothUuid.SerialPort))
+        self.btSocket.connectToService(QtBluetooth.QBluetoothAddress(self.zephyrMAC), QtBluetooth.QBluetoothUuid(QtBluetooth.QBluetoothUuid.SerialPort))
 
     def startServiceDiscovery(self):
         # Create a discovery agent and connect to its signals
@@ -100,18 +100,47 @@ class pyTrainer(QWidget):
         self.writeLog(self.btSocket.errorString())
 
     def connectedToBluetooth(self):
-        self.btSocket.write('A'.encode())
         self.writeLog("connectedToBluetooth")
+
+        startByte = 0x02;
+        endByte = 0x03;
+        ackByte = 0x06;
+        crc = self.crc8PushBlock(None, bytes([ 1 ]));
+        packet = bytes([startByte, 0x14, 0x01, 0x01, crc, endByte])
+        self.writeLog("sending packet => " + str(packet))
+        res = self.btSocket.write(packet);
+        if (res < 0):
+            self.writeLog("Error sending packet to device!")
+        else:
+            self.writeLog("Packet sent.")
+        #setZephyrState(waitForGeneralDataModeAccept);
+
+    def crc8PushByte(self, crc, b):
+        crc = crc ^ b
+        for i in range(0, 8):
+            if (crc & 1):
+                crc = (crc >> 1) ^ 0x8C
+            else:
+                crc = crc >> 1
+        return crc
+
+    def crc8PushBlock(self, pcrc, block):
+        crc = pcrc
+        if crc == None:
+            crc = 0
+        for b in reversed(block):
+            crc = self.crc8PushByte(crc, b)
+        return crc
 
     def disconnectedFromBluetooth(self):
         self.print('Disconnected from bluetooth')
-        self.wtiteLog("disconnectedFromBluetooth")
+        self.writeLog("disconnectedFromBluetooth")
 
     def receivedBluetoothMessage(self):
-        self.wtiteLog("receivedBluetoothMessage")
-        while btSocket.canReadLine():
-            line = btSocket.readLine()
-            writeLog(str(line))
+        self.writeLog("receivedBluetoothMessage")
+        while self.btSocket.canReadLine():
+            line = self.btSocket.readLine()
+            self.writeLog(str(line))
 
 def main():
     if sys.platform == 'darwin':

@@ -1,3 +1,4 @@
 29.12.2022  1 hour      Project PyTrainer is controlled by Git
                         Sample for connecting to BT device
-04.01.2023  1 hour      Connecting to Zephyr, read data from it.
+04.01.2023  1 hour      Trying to connect with zephyr
+12.01.2023  2 hour      Pairing with request from application but pin code enter manually to the first time. Connecting with zephyr and read data from it (without parsing data)
