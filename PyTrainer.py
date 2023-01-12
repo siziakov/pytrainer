@@ -49,13 +49,47 @@ class pyTrainer(QWidget):
 
         self.localDevice = QtBluetooth.QBluetoothLocalDevice()
         if self.localDevice.isValid():
+            self.writeLog("localdevice valid")
             is_off = self.localDevice.hostMode() == QBluetoothLocalDevice.HostPoweredOff or False
+            self.writeLog(str(is_off))
             if is_off:
                 self.localDevice.setHostMode(QBluetoothLocalDevice.HostDiscoverable)
                 self.localDevice.powerOn()
                 self.localDevice.setHostMode(QBluetoothLocalDevice.HostDiscoverable)
-            #else:
-                #self.localDevice.setHostMode(QBluetoothLocalDevice.HostPoweredOff)
+            else:
+                self.localDevice.setHostMode(QBluetoothLocalDevice.HostDiscoverable)
+                #self.btSocket.doDeviceDiscovery(QtBluetooth.QBluetoothServiceInfo, QtCore.QIODevice.OpenModeFlag.ReadWrite)
+                self.localDevice.requestPairing(QtBluetooth.QBluetoothAddress(btAddress), QtBluetooth.QBluetoothLocalDevice.AuthorizedPaired)
+                self.localDevice.pairingFinished.connect(self.devicePairingFinished)
+                #self.startServiceDiscovery()
+
+
+    def devicePairingFinished(self, address, pairing):
+        self.writeLog(str(address))
+        self.writeLog(str(pairing))
+        self.btSocket.connectToService(QtBluetooth.QBluetoothAddress(btAddress), QtBluetooth.QBluetoothUuid(QtBluetooth.QBluetoothUuid.SerialPort))
+
+    def startServiceDiscovery(self):
+        # Create a discovery agent and connect to its signals
+        self.discoveryAgent = QtBluetooth.QBluetoothServiceDiscoveryAgent()
+        self.discoveryAgent.serviceDiscovered.connect(self.discoveryAgent.discoveredServices)
+        # Start a discovery
+        self.discoveryAgent.start()
+        #...
+
+    # In your local slot, read information about the found devices
+    def serviceDiscovered(self, service):
+        print("Found service():", service.serviceName()) << '(' << service.device().address().toString() << ')'
+
+    def scan_for_devices(self):
+        self.agent = QtBluetooth.QBluetoothDeviceDiscoveryAgent(QtBluetooth.QBluetoothAddress(self.zephyrMAC))
+        self.agent.deviceDiscovered.connect(self.foo)
+        self.agent.finished.connect(self.foo)
+        self.agent.error.connect(self.foo)
+        self.agent.setLowEnergyDiscoveryTimeout(1000)
+
+    def foo(self, *args, **kwargs):
+        print('foo', args, kwargs)
 
     def hostModeStateChanged(self,state):
         self.writeLog(state)
@@ -63,6 +97,7 @@ class pyTrainer(QWidget):
     def socketError(self,error):
         print(self.btSocket.errorString())
         self.writeLog("socketError")
+        self.writeLog(self.btSocket.errorString())
 
     def connectedToBluetooth(self):
         self.btSocket.write('A'.encode())
@@ -79,6 +114,9 @@ class pyTrainer(QWidget):
             writeLog(str(line))
 
 def main():
+    if sys.platform == 'darwin':
+        os.environ['QT_EVENT_DISPATCHER_CORE_FOUNDATION'] = '1'
+
     app = QApplication(sys.argv)
 
     ex = pyTrainer();
@@ -88,6 +126,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 #app = QtWidgets.QApplication([])
 #widget = uic.loadUi("mainwindow.ui")
