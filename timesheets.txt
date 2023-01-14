@@ -2,3 +2,4 @@
                         Sample for connecting to BT device
 04.01.2023  1 hour      Trying to connect with zephyr
 12.01.2023  2 hour      Pairing with request from application but pin code enter manually to the first time. Connecting with zephyr and read data from it (without parsing data)
+14.01.2023  1 hour      Trying to parse the zephyr packets. But the packets is broken (length of packet is strange and different)

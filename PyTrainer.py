@@ -106,6 +106,7 @@ class pyTrainer(QWidget):
         endByte = 0x03;
         ackByte = 0x06;
         crc = self.crc8PushBlock(None, bytes([ 1 ]));
+        self.writeLog("crc = " + str(crc))
         packet = bytes([startByte, 0x14, 0x01, 0x01, crc, endByte])
         self.writeLog("sending packet => " + str(packet))
         res = self.btSocket.write(packet);
@@ -128,7 +129,7 @@ class pyTrainer(QWidget):
         crc = pcrc
         if crc == None:
             crc = 0
-        for b in reversed(block):
+        for b in block:
             crc = self.crc8PushByte(crc, b)
         return crc
 
@@ -139,8 +140,26 @@ class pyTrainer(QWidget):
     def receivedBluetoothMessage(self):
         self.writeLog("receivedBluetoothMessage")
         while self.btSocket.canReadLine():
-            line = self.btSocket.readLine()
-            self.writeLog(str(line))
+            packet = self.btSocket.readLine()
+            self.writeLog(str(packet.length()) + "|" + str(packet))
+            if (packet.length() == 5 and packet.at(0) == 0x02 and packet.at(1) == 0x14 and packet.at(2) == 0 and packet.at(4) == 0x06):
+                self.writeLog("activate R to R sendind mode")
+                crc = self.crc8PushBlock(None, bytes([1]))
+                new_packet = bytes([0x02, 0x19, 0x01, 0x01, crc, 0x03])
+                res = self.btSocket.write(new_packet)
+                self.writeLog("Error sending packet to device!" if (res < 0) else "Packet sent.")
+            if (packet.length() == 58 and packet.at(0) == 0x02 and packet.at(1) == 0x20 and packet.at(2) == 53 and (packet.at(packet.length() - 1) == 0x03 or packet.at(packet.length() - 1) == 0x06)):
+                lastHRReceived = packet.at(12) + (packet.at(13) << 8);
+                #in microVolts
+                lastECGReceived = min(9999, packet.at(28) + (packet.at(29) << 8));
+                #in microVolts
+                lastNoiseReceived = min(9999, packet.at(30) + (packet.at(31) << 8));
+                #in milliVolts
+                lastBatteryReceived = (packet.at(54));
+                self.writeLog("HR = " + lastHRReceived + " , ECG (mcV) = " + lastECGReceived + " , Noise (mcV) = " + lastNoiseReceived + " , Battery (mV) = " + lastBatteryReceived)
+            if (packet.length() == 50 and packet.at(0) == 0x02 and packet.at(1) == 0x24 and packet.at(2) == 45 and (packet.at(packet.length() - 1) == 0x03 or packet.at(packet.length() - 1) == 0x06)):
+                self.writeLog("RR packet recieved")
+            #self.writeLog(str(packet))
 
 def main():
     if sys.platform == 'darwin':
