@@ -108,6 +108,7 @@ class pyTrainer(QWidget):
         crc = self.crc8PushBlock(None, bytes([ 1 ]));
         self.writeLog("crc = " + str(crc))
         packet = bytes([startByte, 0x14, 0x01, 0x01, crc, endByte])
+        #packet = bytes([startByte, 0x14, 0x01, 0x01, 0x5e, endByte])
         self.writeLog("sending packet => " + str(packet))
         res = self.btSocket.write(packet);
         if (res < 0):
@@ -137,28 +138,51 @@ class pyTrainer(QWidget):
         self.print('Disconnected from bluetooth')
         self.writeLog("disconnectedFromBluetooth")
 
+    def packetParse(self,packet,startIndex):
+        indexOfStartingPacket = packet.indexOf(bytes([0x02, 0x20, 53]), startIndex)
+        if (indexOfStartingPacket > -1):
+            lastHRReceived = ord(packet.at(indexOfStartingPacket + 12)) + ord(packet.at(indexOfStartingPacket + 13)) * 256
+            #in microVolts
+            lastECGReceived = min(9999, ord(packet.at(indexOfStartingPacket + 28)) + ord(packet.at(indexOfStartingPacket + 29)) * 256) * 0.000001
+            #skin Temperature
+            lastSkinTemperature = (ord(packet.at(indexOfStartingPacket + 16)) + ord(packet.at(indexOfStartingPacket + 17)) * 256) * 0.1
+            #in microVolts
+            lastNoiseReceived = min(9999, ord(packet.at(indexOfStartingPacket + 30)) + ord(packet.at(indexOfStartingPacket + 31)) * 256) * 0.000001
+            #in milliVolts
+            lastBatteryReceived = (ord(packet.at(indexOfStartingPacket + 24)) + ord(packet.at(indexOfStartingPacket + 25)) * 256) * 0.001
+            self.writeLog("HR = " + str(lastHRReceived) + " , T = " + str(lastSkinTemperature) + " , ECG (mcV) = " + str(lastECGReceived) + " , Noise (mcV) = " + str(lastNoiseReceived) + " , Battery (mV) = " + str(lastBatteryReceived))
+            self.packetParse(packet, indexOfStartingPacket + 58)
+
     def receivedBluetoothMessage(self):
-        self.writeLog("receivedBluetoothMessage")
+        #self.writeLog("receivedBluetoothMessage")
         while self.btSocket.canReadLine():
             packet = self.btSocket.readLine()
-            self.writeLog(str(packet.length()) + "|" + str(packet))
-            if (packet.length() == 5 and packet.at(0) == 0x02 and packet.at(1) == 0x14 and packet.at(2) == 0 and packet.at(4) == 0x06):
-                self.writeLog("activate R to R sendind mode")
-                crc = self.crc8PushBlock(None, bytes([1]))
-                new_packet = bytes([0x02, 0x19, 0x01, 0x01, crc, 0x03])
-                res = self.btSocket.write(new_packet)
-                self.writeLog("Error sending packet to device!" if (res < 0) else "Packet sent.")
-            if (packet.length() == 58 and packet.at(0) == 0x02 and packet.at(1) == 0x20 and packet.at(2) == 53 and (packet.at(packet.length() - 1) == 0x03 or packet.at(packet.length() - 1) == 0x06)):
-                lastHRReceived = packet.at(12) + (packet.at(13) << 8);
-                #in microVolts
-                lastECGReceived = min(9999, packet.at(28) + (packet.at(29) << 8));
-                #in microVolts
-                lastNoiseReceived = min(9999, packet.at(30) + (packet.at(31) << 8));
-                #in milliVolts
-                lastBatteryReceived = (packet.at(54));
-                self.writeLog("HR = " + lastHRReceived + " , ECG (mcV) = " + lastECGReceived + " , Noise (mcV) = " + lastNoiseReceived + " , Battery (mV) = " + lastBatteryReceived)
-            if (packet.length() == 50 and packet.at(0) == 0x02 and packet.at(1) == 0x24 and packet.at(2) == 45 and (packet.at(packet.length() - 1) == 0x03 or packet.at(packet.length() - 1) == 0x06)):
-                self.writeLog("RR packet recieved")
+            self.packetParse(packet, 0)
+            #self.writeLog(str(packet.length()) + "|" + str(packet))
+            #if (packet.length() == 5 and packet.at(0) == 0x02 and packet.at(1) == 0x14 and packet.at(2) == 0 and packet.at(4) == 0x06):
+            #if (packet.contains(bytes([0x02, 0x14, 0x00, 0x00, 0x06]))):
+            #    self.writeLog("activate R to R sendind mode")
+            #    crc = self.crc8PushBlock(None, bytes([1]))
+            #    new_packet = bytes([0x02, 0x19, 0x01, 0x01, crc, 0x03])
+                #res = self.btSocket.write(new_packet)
+                #self.writeLog("Error sending packet to device!" if (res < 0) else "Packet sent.")
+            #if (packet.length() == 58 and packet.at(0) == 0x02 and packet.at(1) == 0x20 and packet.at(2) == 53 and (packet.at(packet.length() - 1) == 0x03 or packet.at(packet.length() - 1) == 0x06)):
+            #indexCommon = packet.indexOf(bytes([0x02, 0x20, 53]))
+            #if (indexCommon > -1):
+            #    lastHRReceived = ord(packet.at(indexCommon + 12)) + ord(packet.at(indexCommon + 13)) * 256
+            #    #in microVolts
+            #    lastECGReceived = min(9999, ord(packet.at(indexCommon + 28)) + ord(packet.at(indexCommon + 29)) * 256) * 0.000001
+            #    #skin Temperature
+            #    lastSkinTemperature = (ord(packet.at(indexCommon + 16)) + ord(packet.at(indexCommon + 17)) * 256) * 0.1
+            #    #in microVolts
+            #    lastNoiseReceived = min(9999, ord(packet.at(indexCommon + 30)) + ord(packet.at(indexCommon + 31)) * 256) * 0.000001
+            #    #in milliVolts
+            #    lastBatteryReceived = (ord(packet.at(indexCommon + 24)) + ord(packet.at(indexCommon + 25)) * 256) * 0.001
+            #    self.writeLog("HR = " + str(lastHRReceived) + " , T = " + str(lastSkinTemperature) + " , ECG (mcV) = " + str(lastECGReceived) + " , Noise (mcV) = " + str(lastNoiseReceived) + " , Battery (mV) = " + str(lastBatteryReceived))
+            #if (packet.length() == 50 and packet.at(0) == 0x02 and packet.at(1) == 0x24 and packet.at(2) == 45 and (packet.at(packet.length() - 1) == 0x03 or packet.at(packet.length() - 1) == 0x06)):
+            #indexRR = packet.indexOf(bytes([0x02, 0x24, 45]))
+            #if (indexRR > -1):
+            #    self.writeLog("RR packet recieved")
             #self.writeLog(str(packet))
 
 def main():
