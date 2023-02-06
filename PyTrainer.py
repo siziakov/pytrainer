@@ -139,6 +139,14 @@ class pyTrainer(QWidget):
         self.writeLog("disconnectedFromBluetooth")
 
     def packetParse(self,packet,startIndex):
+        #if (packet.length() == 5 and packet.at(0) == 0x02 and packet.at(1) == 0x14 and packet.at(2) == 0 and packet.at(4) == 0x06):
+        if (packet.contains(bytes([0x02, 0x14, 0x00, 0x00, 0x06]))):
+            self.writeLog("activate R to R sendind mode")
+            crc = self.crc8PushBlock(None, bytes([1]))
+            new_packet = bytes([0x02, 0x19, 0x01, 0x01, crc, 0x03])
+            res = self.btSocket.write(new_packet)
+            self.writeLog("Error sending packet to device!" if (res < 0) else "Packet sent.")
+            return
         indexOfStartingPacket = packet.indexOf(bytes([0x02, 0x20, 53]), startIndex)
         if (indexOfStartingPacket > -1):
             lastHRReceived = ord(packet.at(indexOfStartingPacket + 12)) + ord(packet.at(indexOfStartingPacket + 13)) * 256
@@ -152,6 +160,19 @@ class pyTrainer(QWidget):
             lastBatteryReceived = (ord(packet.at(indexOfStartingPacket + 24)) + ord(packet.at(indexOfStartingPacket + 25)) * 256) * 0.001
             self.writeLog("HR = " + str(lastHRReceived) + " , T = " + str(lastSkinTemperature) + " , ECG (mcV) = " + str(lastECGReceived) + " , Noise (mcV) = " + str(lastNoiseReceived) + " , Battery (mV) = " + str(lastBatteryReceived))
             self.packetParse(packet, indexOfStartingPacket + 58)
+        else:
+            indexOfRRPacket = packet.indexOf(bytes([0x02, 0x24, 45]), startIndex)
+            if (indexOfRRPacket > -1):
+                sequenceNumber = ord(packet.at(indexOfRRPacket + 3))
+                RRs = []
+                for n in range(0, 18):
+                    rr = (ord)(packet.at(indexOfRRPacket + 12 + n)) + (ord)(packet.at(indexOfRRPacket + 13 + n)) * 256
+                    RRs.append(rr)
+                s = "";
+                for b in RRs:
+                    s = s + str(b) + "|"
+                self.writeLog("RRs[] = " + s)
+                self.packetParse(packet, indexOfRRPacket + 49)
 
     def receivedBluetoothMessage(self):
         #self.writeLog("receivedBluetoothMessage")
